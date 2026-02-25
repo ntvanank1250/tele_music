@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import os
-from typing import List
+from typing import List, Optional, Set
 
 from dotenv import load_dotenv
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -23,8 +23,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+_ALLOWED_USER_IDS: Optional[Set[int]] = None
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if await _reject_if_not_allowed(update):
+        return
     await update.message.reply_text(
         "Chao ban! Dung lenh /search <ten bai hat> de tim nhac."
     )
@@ -42,6 +46,8 @@ def _build_results_keyboard(results: List[dict]) -> InlineKeyboardMarkup:
 
 
 async def search_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if await _reject_if_not_allowed(update):
+        return
     if not update.message:
         return
     if not context.args:
@@ -57,6 +63,8 @@ async def search_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 
 async def handle_download(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if await _reject_if_not_allowed(update):
+        return
     query = update.callback_query
     if not query:
         return
@@ -107,12 +115,44 @@ def main() -> None:
     if not token:
         raise RuntimeError("BOT_TOKEN is not set. Check your .env file.")
 
+    allowed_ids_raw = os.getenv("ALLOWED_TELEGRAM_IDS", "")
+    allowed_ids = _parse_allowed_ids(allowed_ids_raw)
+    global _ALLOWED_USER_IDS
+    _ALLOWED_USER_IDS = allowed_ids if allowed_ids else None
+
     application = Application.builder().token(token).build()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("search", search_command))
     application.add_handler(CallbackQueryHandler(handle_download))
 
     application.run_polling()
+
+
+def _parse_allowed_ids(value: str) -> Set[int]:
+    ids: Set[int] = set()
+    for item in value.split(","):
+        item = item.strip()
+        if not item:
+            continue
+        try:
+            ids.add(int(item))
+        except ValueError:
+            logger.warning("Invalid Telegram user id: %s", item)
+    return ids
+
+
+async def _reject_if_not_allowed(update: Update) -> bool:
+    if not _ALLOWED_USER_IDS:
+        return False
+    user = update.effective_user
+    if not user or user.id not in _ALLOWED_USER_IDS:
+        message = "Ban khong co quyen su dung bot."
+        if update.message:
+            await update.message.reply_text(message)
+        elif update.callback_query:
+            await update.callback_query.answer(text=message, show_alert=True)
+        return True
+    return False
 
 
 if __name__ == "__main__":

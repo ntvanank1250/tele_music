@@ -8,7 +8,7 @@ from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError
 
 
-DEFAULT_MAX_DURATION_SECONDS = 30 * 60
+DEFAULT_MAX_DURATION_SECONDS = 60 * 60
 
 
 def _build_ydl_opts(output_dir: str) -> dict:

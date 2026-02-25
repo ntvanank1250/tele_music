@@ -1,0 +1,15 @@
+services:
+  telegram-bot:
+    build: .
+    container_name: tele_music_bot
+    restart: unless-stopped
+    volumes:
+      # Mount code để auto-reload khi sửa
+      - ./main.py:/app/main.py
+      - ./search_engine.py:/app/search_engine.py
+      - ./downloader.py:/app/downloader.py
+      - ./.env:/app/.env
+    environment:
+      - PYTHONUNBUFFERED=1
+    env_file:
+      - .env

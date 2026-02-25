@@ -13,8 +13,13 @@ build/
 venv/
 ENV/
 
-# dotenv
-.env
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
 
 # Logs
 *.log
@@ -22,10 +27,7 @@ ENV/
 # OS files
 .DS_Store
 
-# Temp downloads
-temp_*/
-*.mp3
-*.m4a
-
-# Docker volumes
-docker-compose.override.yml
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
