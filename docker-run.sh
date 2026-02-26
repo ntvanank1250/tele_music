@@ -38,6 +38,46 @@ if grep -q "your_telegram_bot_token_here" .env 2>/dev/null; then
     echo ""
 fi
 
+# Kiểm tra xem FB_PAGE_ID đã được cấu hình chưa
+if grep -q "your_facebook_page_id" .env 2>/dev/null; then
+    echo "⚠️  FB_PAGE_ID chưa được cấu hình!"
+    echo ""
+    echo "Để sử dụng /upfb (upload TikTok lên Facebook):"
+    echo "  1. Truy cập https://www.facebook.com/[your-page]"
+    echo "  2. Lấy Page ID từ About > Page Info"
+    echo ""
+    read -p "Nhập FB_PAGE_ID của bạn (Enter để bỏ qua): " fb_page_id
+    
+    if [ -n "$fb_page_id" ]; then
+        sed -i "s|FB_PAGE_ID=.*|FB_PAGE_ID=$fb_page_id|g" .env
+        echo "✓ Đã cập nhật FB_PAGE_ID"
+    else
+        echo "⊘ Bỏ qua FB_PAGE_ID (không thể dùng /upfb)"
+    fi
+    echo ""
+fi
+
+# Kiểm tra xem FB_PAGE_ACCESS_TOKEN đã được cấu hình chưa
+if grep -q "your_facebook_page_access_token" .env 2>/dev/null; then
+    echo "⚠️  FB_PAGE_ACCESS_TOKEN chưa được cấu hình!"
+    echo ""
+    echo "Để lấy Page Access Token:"
+    echo "  1. Truy cập https://developers.facebook.com/tools/explorer/"
+    echo "  2. Chọn Page của bạn"
+    echo "  3. Generate Access Token với quyền: pages_manage_posts, pages_read_engagement"
+    echo "  4. Copy token"
+    echo ""
+    read -p "Nhập FB_PAGE_ACCESS_TOKEN của bạn (Enter để bỏ qua): " fb_access_token
+    
+    if [ -n "$fb_access_token" ]; then
+        sed -i "s|FB_PAGE_ACCESS_TOKEN=.*|FB_PAGE_ACCESS_TOKEN=$fb_access_token|g" .env
+        echo "✓ Đã cập nhật FB_PAGE_ACCESS_TOKEN"
+    else
+        echo "⊘ Bỏ qua FB_PAGE_ACCESS_TOKEN (không thể dùng /upfb)"
+    fi
+    echo ""
+fi
+
 # Build image
 echo "Building Docker image..."
 sudo docker compose build
