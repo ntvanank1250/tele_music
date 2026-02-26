@@ -4,7 +4,7 @@ import os
 from typing import List, Optional, Set
 
 from dotenv import load_dotenv
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -198,6 +198,18 @@ async def handle_download(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 logger.warning("Failed to cleanup temp dir: %s", temp_dir)
 
 
+async def post_init(application: Application) -> None:
+    """Set bot commands menu after initialization."""
+    commands = [
+        BotCommand("start", "Khởi động bot"),
+        BotCommand("help", "Hiển thị hướng dẫn"),
+        BotCommand("search", "Tìm kiếm nhạc YouTube"),
+        BotCommand("dowtiktok", "Tải video TikTok"),
+    ]
+    await application.bot.set_my_commands(commands)
+    logger.info("Bot commands menu has been set")
+
+
 def main() -> None:
     load_dotenv()
     token = os.getenv("BOT_TOKEN")
@@ -209,7 +221,7 @@ def main() -> None:
     global _ALLOWED_USER_IDS
     _ALLOWED_USER_IDS = allowed_ids if allowed_ids else None
 
-    application = Application.builder().token(token).build()
+    application = Application.builder().token(token).post_init(post_init).build()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("search", search_command))

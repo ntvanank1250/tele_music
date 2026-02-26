@@ -69,8 +69,12 @@ Logging: Sử dụng module logging của Python để theo dõi tiến trình.
 
 Environment: Lưu BOT_TOKEN trong file .env và dùng python-dotenv để đọc.
 
+Bot Commands Menu: Sử dụng set_my_commands để hiển thị menu lệnh trong Telegram (nút menu bên cạnh ô nhập tin nhắn).
+
 5. Cấu trúc File đề xuất
 main.py: Khởi tạo Application và đăng ký Handlers (start, help, search, dowtiktok).
+  - post_init(): Callback để set bot commands menu sau khi bot khởi động
+  - Sử dụng BotCommand để định nghĩa danh sách lệnh hiển thị trong menu
 
 search_engine.py: Chứa hàm tìm kiếm YouTube.
 
