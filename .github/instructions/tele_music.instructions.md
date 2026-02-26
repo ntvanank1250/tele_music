@@ -9,9 +9,13 @@ Framework: python-telegram-bot (version 20.x trở lên, sử dụng asyncio).
 
 Tìm kiếm: Youtube-python hoặc yt-search.
 
-Xử lý Audio: yt-dlp (Công cụ mạnh mẽ và cập nhật nhất hiện nay).
+Xử lý Audio/Video: yt-dlp (Công cụ mạnh mẽ và cập nhật nhất hiện nay).
 
-Yêu cầu hệ thống: Máy chủ cần cài đặt sẵn ffmpeg để convert audio.
+Impersonation: curl-cffi (Cần thiết cho TikTok để bypass bảo vệ anti-bot).
+
+Yêu cầu hệ thống: 
+- Máy chủ cần cài đặt sẵn ffmpeg để convert audio.
+- Build tools (gcc, g++, make) và libcurl-dev để build curl-cffi.
 
 3. Cấu trúc Logic (Flow Logic)
 
@@ -53,7 +57,18 @@ Sử dụng context.bot.send_video để gửi file video.
 
 Giới hạn: Chỉ tải video < 10 phút.
 
-3.5. Tối ưu hóa bộ nhớ (cho cả YouTube và TikTok):
+3.5. Lệnh /upfb [URL...]:
+Nhận 1 hoặc nhiều URL TikTok từ người dùng.
+
+Validate URL (phải chứa "tiktok.com" hoặc "vm.tiktok.com").
+
+Tải video TikTok bằng yt-dlp rồi upload lên Facebook Page qua Graph API.
+
+Yêu cầu env: FB_PAGE_ID, FB_PAGE_ACCESS_TOKEN.
+
+Giới hạn: Chỉ tải video < 10 phút.
+
+3.6. Tối ưu hóa bộ nhớ (cho cả YouTube và TikTok):
 Xóa file tạm sau khi gửi thành công để tránh đầy ổ cứng.
 
 Sử dụng tempfile.mkdtemp để tạo thư mục tạm.
@@ -91,9 +106,11 @@ requirements.txt: Danh sách thư viện (python-telegram-bot, yt-dlp, python-do
 /help - Hiển thị menu trợ giúp đầy đủ
 /search <tên bài hát> - Tìm kiếm và tải nhạc từ YouTube (MP3)
 /dowtiktok <URL> - Tải video từ TikTok
+/upfb <URL...> - Tải TikTok và upload lên Facebook Page
 
 7. Giới hạn và Lưu ý (Limits & Notes)
 - YouTube: Chỉ tải bài hát dưới 30 phút, output là MP3
 - TikTok: Chỉ tải video dưới 10 phút, output là video gốc
 - Xử lý lỗi: Video riêng tư, bị chặn, giới hạn độ tuổi
 - Permission: Có thể giới hạn user thông qua ALLOWED_TELEGRAM_IDS trong .env
+- Facebook: Can FB_PAGE_ID va FB_PAGE_ACCESS_TOKEN (Graph API)

@@ -14,6 +14,7 @@ from telegram.ext import (
 from yt_dlp.utils import DownloadError
 
 from downloader import download_audio_mp3, download_tiktok_video
+from facebook_uploader import upload_video_to_facebook
 from search_engine import search_youtube
 
 
@@ -47,6 +48,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 /help - Hiển thị menu trợ giúp này
 /search <tên bài hát> - Tìm kiếm và tải nhạc từ YouTube
 /dowtiktok <URL> - Tải video từ TikTok
+/upfb <URL...> - Tải TikTok và up lên Facebook
 
 📝 *Cách sử dụng:*
 
@@ -64,10 +66,18 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
    • Hoặc: `/dowtiktok https://vm.tiktok.com/xyz123`
 3️⃣ Chờ bot tải và gửi video cho bạn
 
+*📤 Up Facebook (Page):*
+1️⃣ Chuẩn bị Access Token và Page ID
+2️⃣ Gõ lệnh /upfb kèm 1 hoặc nhiều link TikTok
+    • Ví dụ: `/upfb https://www.tiktok.com/@user/video/123456`
+    • Nhiều link: `/upfb url1 url2 url3`
+3️⃣ Bot sẽ tải video và upload lên Facebook Page
+
 ⚠️ *Giới hạn:*
 • Nhạc YouTube: < 30 phút → MP3
 • Video TikTok: < 10 phút → Video gốc
 • Video riêng tư, bị chặn, hoặc giới hạn độ tuổi không tải được
+• /upfb chỉ hỗ trợ TikTok và yêu cầu cấu hình FB_PAGE_ID, FB_PAGE_ACCESS_TOKEN
 
 💡 *Mẹo:* 
 • Gõ tên bài hát cụ thể kèm tên ca sĩ để kết quả chính xác hơn
@@ -121,6 +131,75 @@ async def dowtiktok_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                 shutil.rmtree(temp_dir, ignore_errors=True)
             except Exception:
                 logger.warning("Failed to cleanup temp dir: %s", temp_dir)
+
+
+async def upfb_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if await _reject_if_not_allowed(update):
+        return
+    if not update.message:
+        return
+    if not context.args:
+        await update.message.reply_text(
+            "Hay nhap URL TikTok can upload.\n"
+            "Vi du: /upfb https://www.tiktok.com/@user/video/123456"
+        )
+        return
+
+    page_id = os.getenv("FB_PAGE_ID")
+    access_token = os.getenv("FB_PAGE_ACCESS_TOKEN")
+    if not page_id or not access_token:
+        await update.message.reply_text(
+            "Vui long them FB_PAGE_ID va FB_PAGE_ACCESS_TOKEN trong .env, sau do restart bot."
+        )
+        return
+
+    urls = [item.strip() for item in context.args if item.strip()]
+    valid_urls = [
+        url for url in urls if "tiktok.com" in url or "vm.tiktok.com" in url
+    ]
+    invalid_urls = [url for url in urls if url not in valid_urls]
+    if not valid_urls:
+        await update.message.reply_text("Khong tim thay URL TikTok hop le.")
+        return
+
+    msg = await update.message.reply_text(
+        f"Dang xu ly {len(valid_urls)} video TikTok de upload Facebook..."
+    )
+
+    results = []
+    total = len(valid_urls)
+    for idx, url in enumerate(valid_urls, start=1):
+        await msg.edit_text(f"Dang xu ly {idx}/{total}...")
+        try:
+            video_path, title, temp_dir = await download_tiktok_video(url)
+            await asyncio.to_thread(
+                upload_video_to_facebook,
+                video_path,
+                title,
+                page_id,
+                access_token,
+            )
+            results.append(f"{idx}. Thanh cong: {title}")
+        except ValueError:
+            results.append(f"{idx}. That bai: video qua dai (duoi 10 phut)")
+        except DownloadError:
+            results.append(f"{idx}. That bai: khong tai duoc video TikTok")
+        except Exception as exc:
+            logger.exception("Unexpected error uploading to Facebook: %s", exc)
+            results.append(f"{idx}. That bai: loi upload Facebook")
+        finally:
+            if "temp_dir" in locals():
+                try:
+                    import shutil
+
+                    shutil.rmtree(temp_dir, ignore_errors=True)
+                except Exception:
+                    logger.warning("Failed to cleanup temp dir: %s", temp_dir)
+
+    if invalid_urls:
+        results.append("Link khong hop le: " + ", ".join(invalid_urls))
+
+    await msg.edit_text("Hoan tat.\n" + "\n".join(results))
 
 
 def _build_results_keyboard(results: List[dict]) -> InlineKeyboardMarkup:
@@ -205,6 +284,7 @@ async def post_init(application: Application) -> None:
         BotCommand("help", "Hiển thị hướng dẫn"),
         BotCommand("search", "Tìm kiếm nhạc YouTube"),
         BotCommand("dowtiktok", "Tải video TikTok"),
+        BotCommand("upfb", "Upload TikTok lên Facebook"),
     ]
     await application.bot.set_my_commands(commands)
     logger.info("Bot commands menu has been set")
@@ -226,6 +306,7 @@ def main() -> None:
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("search", search_command))
     application.add_handler(CommandHandler("dowtiktok", dowtiktok_command))
+    application.add_handler(CommandHandler("upfb", upfb_command))
     application.add_handler(CallbackQueryHandler(handle_download))
 
     application.run_polling()
