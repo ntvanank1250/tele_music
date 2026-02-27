@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import os
-from typing import List, Optional, Set
+from typing import List
 
 from dotenv import load_dotenv
 from telegram import BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -13,9 +13,49 @@ from telegram.ext import (
 )
 from yt_dlp.utils import DownloadError
 
+from constants import (
+    BOT_COMMANDS,
+    MAX_TIKTOK_DURATION,
+    MAX_YOUTUBE_DURATION,
+    MSG_COLLECTING_SYSTEM_INFO,
+    MSG_DOWNLOAD_AUDIO_FAILED,
+    MSG_DOWNLOAD_FAILED,
+    MSG_DOWNLOADING_TIKTOK,
+    MSG_FB_CONFIG_MISSING,
+    MSG_HELP,
+    MSG_INVALID_TIKTOK_URL,
+    MSG_NO_SEARCH_RESULTS,
+    MSG_NO_VALID_TIKTOK_URL,
+    MSG_PROCESSING_AUDIO,
+    MSG_SEARCH_USAGE,
+    MSG_SELECT_SONG,
+    MSG_SYSTEM_INFO_ERROR,
+    MSG_TIKTOK_USAGE,
+    MSG_UNEXPECTED_ERROR,
+    MSG_UPFB_COMPLETE,
+    MSG_UPFB_FAILED_DOWNLOAD,
+    MSG_UPFB_FAILED_LONG,
+    MSG_UPFB_FAILED_UPLOAD,
+    MSG_UPFB_INVALID_LINKS,
+    MSG_UPFB_PROCESSING,
+    MSG_UPFB_SUCCESS,
+    MSG_UPFB_USAGE,
+    MSG_VIDEO_TOO_LONG_TIKTOK,
+    MSG_VIDEO_TOO_LONG_YOUTUBE,
+    MSG_WELCOME,
+)
 from downloader import download_audio_mp3, download_tiktok_video
 from facebook_uploader import upload_video_to_facebook
+from helpers import (
+    cleanup_temp_dir,
+    filter_valid_tiktok_urls,
+    is_tiktok_url,
+    parse_allowed_ids,
+    require_permission,
+    set_allowed_user_ids,
+)
 from search_engine import search_youtube
+from system_info import get_system_info
 
 
 logging.basicConfig(
@@ -24,90 +64,54 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-_ALLOWED_USER_IDS: Optional[Set[int]] = None
 
-
+@require_permission
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if await _reject_if_not_allowed(update):
-        return
-    await update.message.reply_text(
-        "Chao ban! Dung lenh /search <ten bai hat> de tim nhac.\n"
-        "Dung lenh /help de xem huong dan chi tiet."
-    )
+    """Handle /start command."""
+    await update.message.reply_text(MSG_WELCOME)
 
 
+@require_permission
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if await _reject_if_not_allowed(update):
+    """Handle /help command."""
+    await update.message.reply_text(MSG_HELP, parse_mode="Markdown")
+
+
+@require_permission
+async def sys_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /sys command - Display system information."""
+    if not update.message:
         return
-    help_text = """
-📖 *HƯỚNG DẪN SỬ DỤNG BOT NHẠC & VIDEO*
-
-🎵 *Các lệnh có sẵn:*
-
-/start - Khởi động bot
-/help - Hiển thị menu trợ giúp này
-/search <tên bài hát> - Tìm kiếm và tải nhạc từ YouTube
-/dowtiktok <URL> - Tải video từ TikTok
-/upfb <URL...> - Tải TikTok và up lên Facebook
-
-📝 *Cách sử dụng:*
-
-*🎧 Tải nhạc YouTube:*
-1️⃣ Gõ lệnh /search kèm tên bài hát
-   • Ví dụ: `/search Imagine Dragons Believer`
-2️⃣ Bot sẽ trả về 5 kết quả phù hợp nhất
-3️⃣ Chọn bài hát bạn muốn tải
-4️⃣ Chờ bot xử lý và gửi file MP3 cho bạn
-
-*🎬 Tải video TikTok:*
-1️⃣ Copy link video TikTok (link đầy đủ hoặc rút gọn)
-2️⃣ Gõ lệnh /dowtiktok kèm link
-   • Ví dụ: `/dowtiktok https://www.tiktok.com/@user/video/123456`
-   • Hoặc: `/dowtiktok https://vm.tiktok.com/xyz123`
-3️⃣ Chờ bot tải và gửi video cho bạn
-
-*📤 Up Facebook (Page):*
-1️⃣ Chuẩn bị Access Token và Page ID
-2️⃣ Gõ lệnh /upfb kèm 1 hoặc nhiều link TikTok
-    • Ví dụ: `/upfb https://www.tiktok.com/@user/video/123456`
-    • Nhiều link: `/upfb url1 url2 url3`
-3️⃣ Bot sẽ tải video và upload lên Facebook Page
-
-⚠️ *Giới hạn:*
-• Nhạc YouTube: < 30 phút → MP3
-• Video TikTok: < 10 phút → Video gốc
-• Video riêng tư, bị chặn, hoặc giới hạn độ tuổi không tải được
-• /upfb chỉ hỗ trợ TikTok và yêu cầu cấu hình FB_PAGE_ID, FB_PAGE_ACCESS_TOKEN
-
-💡 *Mẹo:* 
-• Gõ tên bài hát cụ thể kèm tên ca sĩ để kết quả chính xác hơn
-• Với TikTok, cả link đầy đủ và link rút gọn đều được hỗ trợ
-"""
-    await update.message.reply_text(help_text, parse_mode="Markdown")
+    
+    msg = await update.message.reply_text(MSG_COLLECTING_SYSTEM_INFO)
+    
+    try:
+        system_info = await get_system_info()
+        await msg.edit_text(system_info, parse_mode="Markdown")
+    except Exception as exc:
+        logger.exception("Error getting system info: %s", exc)
+        await msg.edit_text(MSG_SYSTEM_INFO_ERROR)
 
 
+@require_permission
 async def dowtiktok_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if await _reject_if_not_allowed(update):
-        return
+    """Handle /dowtiktok command - Download TikTok video."""
     if not update.message:
         return
     if not context.args:
-        await update.message.reply_text(
-            "Hay nhap URL video TikTok.\n"
-            "Vi du: /dowtiktok https://www.tiktok.com/@user/video/123456"
-        )
+        await update.message.reply_text(MSG_TIKTOK_USAGE)
         return
     
     url = context.args[0]
-    # Support both full and shortened TikTok URLs
-    if "tiktok.com" not in url and "vm.tiktok.com" not in url:
-        await update.message.reply_text("URL khong hop le. Vui long nhap link TikTok.")
+    if not is_tiktok_url(url):
+        await update.message.reply_text(MSG_INVALID_TIKTOK_URL)
         return
     
-    msg = await update.message.reply_text("Dang tai video TikTok... 🎬")
+    msg = await update.message.reply_text(MSG_DOWNLOADING_TIKTOK)
+    temp_dir = None
     
     try:
-        video_path, title, temp_dir = await download_tiktok_video(url)
+        video_path, title, temp_dir = await download_tiktok_video(url, MAX_TIKTOK_DURATION)
         with open(video_path, "rb") as video_file:
             await context.bot.send_video(
                 chat_id=update.message.chat_id,
@@ -116,62 +120,48 @@ async def dowtiktok_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             )
         await msg.delete()
     except ValueError:
-        await msg.edit_text("Video qua dai. Vui long chon video duoi 10 phut.")
+        await msg.edit_text(MSG_VIDEO_TOO_LONG_TIKTOK)
     except DownloadError:
-        await msg.edit_text(
-            "Khong tai duoc video. Video co the bi chan hoac rieng tu."
-        )
+        await msg.edit_text(MSG_DOWNLOAD_FAILED)
     except Exception as exc:
         logger.exception("Unexpected error downloading TikTok: %s", exc)
-        await msg.edit_text("Da xay ra loi khi tai video.")
+        await msg.edit_text(MSG_UNEXPECTED_ERROR)
     finally:
-        if "temp_dir" in locals():
-            try:
-                import shutil
-                shutil.rmtree(temp_dir, ignore_errors=True)
-            except Exception:
-                logger.warning("Failed to cleanup temp dir: %s", temp_dir)
+        if temp_dir:
+            cleanup_temp_dir(temp_dir)
 
 
+@require_permission
 async def upfb_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if await _reject_if_not_allowed(update):
-        return
+    """Handle /upfb command - Upload TikTok videos to Facebook Page."""
     if not update.message:
         return
     if not context.args:
-        await update.message.reply_text(
-            "Hay nhap URL TikTok can upload.\n"
-            "Vi du: /upfb https://www.tiktok.com/@user/video/123456"
-        )
+        await update.message.reply_text(MSG_UPFB_USAGE)
         return
 
     page_id = os.getenv("FB_PAGE_ID")
     access_token = os.getenv("FB_PAGE_ACCESS_TOKEN")
     if not page_id or not access_token:
-        await update.message.reply_text(
-            "Vui long them FB_PAGE_ID va FB_PAGE_ACCESS_TOKEN trong .env, sau do restart bot."
-        )
+        await update.message.reply_text(MSG_FB_CONFIG_MISSING)
         return
 
-    urls = [item.strip() for item in context.args if item.strip()]
-    valid_urls = [
-        url for url in urls if "tiktok.com" in url or "vm.tiktok.com" in url
-    ]
-    invalid_urls = [url for url in urls if url not in valid_urls]
+    valid_urls, invalid_urls = filter_valid_tiktok_urls(context.args)
     if not valid_urls:
-        await update.message.reply_text("Khong tim thay URL TikTok hop le.")
+        await update.message.reply_text(MSG_NO_VALID_TIKTOK_URL)
         return
 
     msg = await update.message.reply_text(
-        f"Dang xu ly {len(valid_urls)} video TikTok de upload Facebook..."
+        MSG_UPFB_PROCESSING.format(0, len(valid_urls))
     )
 
     results = []
-    total = len(valid_urls)
     for idx, url in enumerate(valid_urls, start=1):
-        await msg.edit_text(f"Dang xu ly {idx}/{total}...")
+        await msg.edit_text(MSG_UPFB_PROCESSING.format(idx, len(valid_urls)))
+        temp_dir = None
+        
         try:
-            video_path, title, temp_dir = await download_tiktok_video(url)
+            video_path, title, temp_dir = await download_tiktok_video(url, MAX_TIKTOK_DURATION)
             await asyncio.to_thread(
                 upload_video_to_facebook,
                 video_path,
@@ -179,27 +169,22 @@ async def upfb_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 page_id,
                 access_token,
             )
-            results.append(f"{idx}. Thanh cong: {title}")
+            results.append(f"{idx}. {MSG_UPFB_SUCCESS.format(title)}")
         except ValueError:
-            results.append(f"{idx}. That bai: video qua dai (duoi 10 phut)")
+            results.append(f"{idx}. {MSG_UPFB_FAILED_LONG}")
         except DownloadError:
-            results.append(f"{idx}. That bai: khong tai duoc video TikTok")
+            results.append(f"{idx}. {MSG_UPFB_FAILED_DOWNLOAD}")
         except Exception as exc:
             logger.exception("Unexpected error uploading to Facebook: %s", exc)
-            results.append(f"{idx}. That bai: loi upload Facebook")
+            results.append(f"{idx}. {MSG_UPFB_FAILED_UPLOAD}")
         finally:
-            if "temp_dir" in locals():
-                try:
-                    import shutil
-
-                    shutil.rmtree(temp_dir, ignore_errors=True)
-                except Exception:
-                    logger.warning("Failed to cleanup temp dir: %s", temp_dir)
+            if temp_dir:
+                cleanup_temp_dir(temp_dir)
 
     if invalid_urls:
-        results.append("Link khong hop le: " + ", ".join(invalid_urls))
+        results.append(MSG_UPFB_INVALID_LINKS.format(", ".join(invalid_urls)))
 
-    await msg.edit_text("Hoan tat.\n" + "\n".join(results))
+    await msg.edit_text(MSG_UPFB_COMPLETE + "\n".join(results))
 
 
 def _build_results_keyboard(results: List[dict]) -> InlineKeyboardMarkup:
@@ -213,38 +198,43 @@ def _build_results_keyboard(results: List[dict]) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(buttons)
 
 
+@require_permission
 async def search_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if await _reject_if_not_allowed(update):
-        return
+    """Handle /search command - Search YouTube videos."""
     if not update.message:
         return
     if not context.args:
-        await update.message.reply_text("Hay nhap tu khoa. Vi du: /search Imagine Dragons")
+        await update.message.reply_text(MSG_SEARCH_USAGE)
         return
+    
     query = " ".join(context.args)
     results = await asyncio.to_thread(search_youtube, query, 5)
     if not results:
-        await update.message.reply_text("Khong tim thay ket qua phu hop.")
+        await update.message.reply_text(MSG_NO_SEARCH_RESULTS)
         return
+    
     keyboard = _build_results_keyboard(results)
-    await update.message.reply_text("Chon bai hat:", reply_markup=keyboard)
+    await update.message.reply_text(MSG_SELECT_SONG, reply_markup=keyboard)
 
 
+@require_permission
 async def handle_download(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if await _reject_if_not_allowed(update):
-        return
+    """Handle callback query for downloading YouTube audio."""
     query = update.callback_query
     if not query:
         return
     await query.answer()
     if not query.data or not query.data.startswith("dl:"):
         return
+    
     video_id = query.data.split(":", 1)[1]
     url = f"https://www.youtube.com/watch?v={video_id}"
 
-    await query.edit_message_text("Dang xu ly am thanh... 🎧")
+    await query.edit_message_text(MSG_PROCESSING_AUDIO)
+    temp_dir = None
+    
     try:
-        mp3_path, title, temp_dir = await download_audio_mp3(url)
+        mp3_path, title, temp_dir = await download_audio_mp3(url, MAX_YOUTUBE_DURATION)
         with open(mp3_path, "rb") as audio_file:
             await context.bot.send_audio(
                 chat_id=query.message.chat_id,
@@ -254,89 +244,57 @@ async def handle_download(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     except ValueError:
         await context.bot.send_message(
             chat_id=query.message.chat_id,
-            text="Video qua dai. Vui long chon bai duoi 30 phut.",
+            text=MSG_VIDEO_TOO_LONG_YOUTUBE,
         )
     except DownloadError:
         await context.bot.send_message(
             chat_id=query.message.chat_id,
-            text="Khong tai duoc am thanh. Video co the bi chan hoac gioi han tuoi.",
+            text=MSG_DOWNLOAD_AUDIO_FAILED,
         )
     except Exception as exc:
         logger.exception("Unexpected error: %s", exc)
         await context.bot.send_message(
             chat_id=query.message.chat_id,
-            text="Da xay ra loi khi xu ly yeu cau.",
+            text=MSG_UNEXPECTED_ERROR,
         )
     finally:
-        if "temp_dir" in locals():
-            try:
-                import shutil
-
-                shutil.rmtree(temp_dir, ignore_errors=True)
-            except Exception:
-                logger.warning("Failed to cleanup temp dir: %s", temp_dir)
+        if temp_dir:
+            cleanup_temp_dir(temp_dir)
 
 
 async def post_init(application: Application) -> None:
     """Set bot commands menu after initialization."""
-    commands = [
-        BotCommand("start", "Khởi động bot"),
-        BotCommand("help", "Hiển thị hướng dẫn"),
-        BotCommand("search", "Tìm kiếm nhạc YouTube"),
-        BotCommand("dowtiktok", "Tải video TikTok"),
-        BotCommand("upfb", "Upload TikTok lên Facebook"),
-    ]
+    commands = [BotCommand(cmd, desc) for cmd, desc in BOT_COMMANDS]
     await application.bot.set_my_commands(commands)
     logger.info("Bot commands menu has been set")
 
 
 def main() -> None:
+    """Main function to start the bot."""
     load_dotenv()
     token = os.getenv("BOT_TOKEN")
     if not token:
         raise RuntimeError("BOT_TOKEN is not set. Check your .env file.")
 
+    # Setup allowed user IDs
     allowed_ids_raw = os.getenv("ALLOWED_TELEGRAM_IDS", "")
-    allowed_ids = _parse_allowed_ids(allowed_ids_raw)
-    global _ALLOWED_USER_IDS
-    _ALLOWED_USER_IDS = allowed_ids if allowed_ids else None
+    allowed_ids = parse_allowed_ids(allowed_ids_raw)
+    set_allowed_user_ids(allowed_ids if allowed_ids else None)
 
+    # Build application
     application = Application.builder().token(token).post_init(post_init).build()
+    
+    # Register handlers
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("search", search_command))
     application.add_handler(CommandHandler("dowtiktok", dowtiktok_command))
     application.add_handler(CommandHandler("upfb", upfb_command))
+    application.add_handler(CommandHandler("sys", sys_command))
     application.add_handler(CallbackQueryHandler(handle_download))
 
+    # Start polling
     application.run_polling()
-
-
-def _parse_allowed_ids(value: str) -> Set[int]:
-    ids: Set[int] = set()
-    for item in value.split(","):
-        item = item.strip()
-        if not item:
-            continue
-        try:
-            ids.add(int(item))
-        except ValueError:
-            logger.warning("Invalid Telegram user id: %s", item)
-    return ids
-
-
-async def _reject_if_not_allowed(update: Update) -> bool:
-    if not _ALLOWED_USER_IDS:
-        return False
-    user = update.effective_user
-    if not user or user.id not in _ALLOWED_USER_IDS:
-        message = "Ban khong co quyen su dung bot."
-        if update.message:
-            await update.message.reply_text(message)
-        elif update.callback_query:
-            await update.callback_query.answer(text=message, show_alert=True)
-        return True
-    return False
 
 
 if __name__ == "__main__":

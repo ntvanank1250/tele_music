@@ -1,116 +1,216 @@
-Project Instructions: Python Telegram Music Bot
-1. Mục tiêu (Core Objective)
+# 🎵 Python Telegram Music Bot - Project Instructions
+
+---
+
+## 1️⃣ Mục tiêu (Core Objective)
+
 Xây dựng Telegram Bot bằng Python cho phép người dùng:
-- Tìm kiếm nhạc từ YouTube, trích xuất âm thanh và gửi file .mp3 trực tiếp.
-- Tải video TikTok và gửi file video cho người dùng.
 
-2. Công nghệ yêu cầu (Tech Stack)
-Framework: python-telegram-bot (version 20.x trở lên, sử dụng asyncio).
+- 🎧 **Tìm kiếm nhạc từ YouTube**: Trích xuất âm thanh và gửi file `.mp3` trực tiếp
+- 🎬 **Tải video TikTok**: Gửi file video cho người dùng
+- 🖥️ **Kiểm tra hệ thống**: Theo dõi Docker containers và Supervisor programs
 
-Tìm kiếm: Youtube-python hoặc yt-search.
+---
 
-Xử lý Audio/Video: yt-dlp (Công cụ mạnh mẽ và cập nhật nhất hiện nay).
+## 2️⃣ Công nghệ yêu cầu (Tech Stack)
 
-Impersonation: curl-cffi (Cần thiết cho TikTok để bypass bảo vệ anti-bot).
+### Thư viện Python
 
-Yêu cầu hệ thống: 
-- Máy chủ cần cài đặt sẵn ffmpeg để convert audio.
-- Build tools (gcc, g++, make) và libcurl-dev để build curl-cffi.
+- **Framework**: `python-telegram-bot` (version 20.x+, hỗ trợ asyncio)
+- **Tìm kiếm**: `youtube-search-python` hoặc `yt-search`
+- **Xử lý Audio/Video**: `yt-dlp` (Công cụ mạnh mẽ và cập nhật nhất)
+- **Impersonation**: `curl-cffi` (Bypass bảo vệ anti-bot cho TikTok)
+- **System Monitoring**: `psutil` (Thu thập thông tin CPU, RAM, Disk)
+- **Environment**: `python-dotenv` (Quản lý biến môi trường)
 
-3. Cấu trúc Logic (Flow Logic)
+### Yêu cầu hệ thống
 
-3.1. Lệnh /start:
-Hiển thị thông báo chào mừng và hướng dẫn cơ bản.
+- ✅ **ffmpeg**: Cài đặt sẵn để convert audio
+- ✅ **Build tools**: gcc, g++, make
+- ✅ **libcurl-dev**: Để build curl-cffi
+- 🔧 **Docker** (tùy chọn): Để lệnh `/sys` hiển thị thông tin containers
+- 🔧 **Supervisor** (tùy chọn): Để lệnh `/sys` hiển thị thông tin programs
 
-3.2. Lệnh /help:
+---
+
+## 3️⃣ Cấu trúc Logic (Flow Logic)
+
+### 3.1. 🚀 Lệnh `/start`
+
+- Hiển thị thông báo chào mừng
+- Hướng dẫn cơ bản cho người dùng mới
+
+### 3.2. 📖 Lệnh `/help`
+
 Hiển thị menu đầy đủ với:
 - Danh sách các lệnh có sẵn
 - Hướng dẫn sử dụng từng chức năng
 - Lưu ý và giới hạn
 - Mẹo sử dụng
 
-3.3. Lệnh /search [tên bài hát]:
-Bot gọi VideosSearch để lấy 5 kết quả hàng đầu.
+### 3.3. 🎵 Lệnh `/search [tên bài hát]`
 
-Trả về tin nhắn kèm InlineKeyboardMarkup. Mỗi nút chứa callback_data là ID của video.
+**Flow:**
+1. Bot gọi `VideosSearch` để lấy 5 kết quả hàng đầu
+2. Trả về tin nhắn kèm `InlineKeyboardMarkup`
+3. Mỗi nút chứa `callback_data` là ID của video
 
-Xử lý Callback (Khi bấm nút):
+**Xử lý Callback (Khi bấm nút):**
+1. Hiển thị thông báo *"Đang xử lý âm thanh... 🎧"*
+2. Sử dụng `yt-dlp` với `postprocessors` để trích xuất audio `.mp3`
+3. Gửi file qua `context.bot.send_audio`
 
-Hiển thị thông báo "Đang xử lý âm thanh... 🎧".
+**⚠️ Giới hạn:** Chỉ tải các bài < 30 phút
 
-Sử dụng yt-dlp với option postprocessors để trích xuất audio định dạng .mp3.
+### 3.4. 🎬 Lệnh `/dowtiktok [URL]`
 
-Sử dụng context.bot.send_audio để gửi file.
+**Flow:**
+1. Nhận URL video TikTok từ người dùng
+2. Validate URL (phải chứa `tiktok.com` hoặc `vm.tiktok.com`)
+3. Hiển thị thông báo *"Đang tải video TikTok... 🎬"*
+4. Sử dụng `yt-dlp` để tải video (format: best)
+5. Gửi file qua `context.bot.send_video`
 
-Giới hạn: Chỉ tải các bài < 30 phút.
+**⚠️ Giới hạn:** Chỉ tải video < 10 phút
 
-3.4. Lệnh /dowtiktok [URL]:
-Nhận URL video TikTok từ người dùng.
+### 3.5. 📤 Lệnh `/upfb [URL...]`
 
-Validate URL (phải chứa "tiktok.com" hoặc "vm.tiktok.com").
+**Flow:**
+1. Nhận 1 hoặc nhiều URL TikTok từ người dùng
+2. Validate URL (phải chứa `tiktok.com` hoặc `vm.tiktok.com`)
+3. Tải video TikTok bằng `yt-dlp`
+4. Upload lên Facebook Page qua Graph API
 
-Hiển thị thông báo "Đang tải video TikTok... 🎬".
+**🔑 Yêu cầu ENV:**
+- `FB_PAGE_ID`
+- `FB_PAGE_ACCESS_TOKEN`
 
-Sử dụng yt-dlp để tải video TikTok (format: best).
+**⚠️ Giới hạn:** Chỉ tải video < 10 phút
 
-Sử dụng context.bot.send_video để gửi file video.
+### 3.6. 🖥️ Lệnh `/sys`
 
-Giới hạn: Chỉ tải video < 10 phút.
+Hiển thị thông tin hệ thống chi tiết:
 
-3.5. Lệnh /upfb [URL...]:
-Nhận 1 hoặc nhiều URL TikTok từ người dùng.
+**🔹 Thông tin OS:**
+- Platform, Architecture, System version
 
-Validate URL (phải chứa "tiktok.com" hoặc "vm.tiktok.com").
+**🔹 Tài nguyên hệ thống (qua `psutil`):**
+- **CPU**: Số cores và % sử dụng
+- **RAM**: Used/Total và phần trăm
+- **Disk**: Used/Total và phần trăm
 
-Tải video TikTok bằng yt-dlp rồi upload lên Facebook Page qua Graph API.
+**🔹 Docker (nếu có):**
+- Tổng số containers và số đang chạy
+- Danh sách containers đang chạy (name, image, status)
+- Danh sách containers đã dừng
 
-Yêu cầu env: FB_PAGE_ID, FB_PAGE_ACCESS_TOKEN.
+**🔹 Supervisor (nếu có):**
+- Tổng số programs và số đang chạy
+- Danh sách programs đang chạy (name, uptime)
+- Danh sách programs đã dừng
 
-Giới hạn: Chỉ tải video < 10 phút.
+**🛠️ Kỹ thuật:**
+- Sử dụng `asyncio.create_subprocess_exec` để chạy:
+  - `docker ps` (với và không có `-a` flag)
+  - `supervisorctl status`
+- Format output dạng Markdown với emoji
 
-3.6. Tối ưu hóa bộ nhớ (cho cả YouTube và TikTok):
-Xóa file tạm sau khi gửi thành công để tránh đầy ổ cứng.
+### 3.7. 🗑️ Tối ưu hóa bộ nhớ
 
-Sử dụng tempfile.mkdtemp để tạo thư mục tạm.
+**Áp dụng cho tất cả download (YouTube và TikTok):**
+- Sử dụng `tempfile.mkdtemp()` để tạo thư mục tạm
+- Xóa file tạm sau khi gửi thành công
+- Cleanup trong `finally` block để đảm bảo luôn xóa file
 
-Cleanup trong finally block để đảm bảo luôn xóa file.
+---
 
-4. Quy tắc lập trình (Coding Rules)
-Asynchronous: Phải sử dụng async/await để bot không bị treo khi có nhiều người dùng cùng lúc.
+## 4️⃣ Quy tắc lập trình (Coding Rules)
 
-Error Handling: Bắt lỗi DownloadError từ yt-dlp (thường do video bị chặn hoặc giới hạn độ tuổi).
+### ⚡ Asynchronous
+- **PHẢI** sử dụng `async`/`await` để bot không bị treo khi có nhiều người dùng
 
-Logging: Sử dụng module logging của Python để theo dõi tiến trình.
+### 🛡️ Error Handling
+- Bắt lỗi `DownloadError` từ `yt-dlp` (video bị chặn, giới hạn độ tuổi)
+- Handle gracefully và thông báo rõ ràng cho user
 
-Environment: Lưu BOT_TOKEN trong file .env và dùng python-dotenv để đọc.
+### 📝 Logging
+- Sử dụng module `logging` của Python
+- Theo dõi tiến trình và debug lỗi
 
-Bot Commands Menu: Sử dụng set_my_commands để hiển thị menu lệnh trong Telegram (nút menu bên cạnh ô nhập tin nhắn).
+### 🔐 Environment Variables
+- Lưu `BOT_TOKEN` trong file `.env`
+- Sử dụng `python-dotenv` để đọc
+- Không commit `.env` vào git
 
-5. Cấu trúc File đề xuất
-main.py: Khởi tạo Application và đăng ký Handlers (start, help, search, dowtiktok).
-  - post_init(): Callback để set bot commands menu sau khi bot khởi động
-  - Sử dụng BotCommand để định nghĩa danh sách lệnh hiển thị trong menu
+### 🎯 Bot Commands Menu
+- Sử dụng `set_my_commands()` để hiển thị menu lệnh
+- Menu xuất hiện bên cạnh ô nhập tin nhắn trong Telegram
 
-search_engine.py: Chứa hàm tìm kiếm YouTube.
+---
 
-downloader.py: Chứa logic yt-dlp để:
-  - download_audio_mp3(): Tải và convert nhạc YouTube
-  - download_tiktok_video(): Tải video TikTok
+## 5️⃣ Cấu trúc File đề xuất
 
-requirements.txt: Danh sách thư viện (python-telegram-bot, yt-dlp, python-dotenv).
+```
+tele_music/
+├── main.py                   # 🎯 Entry point
+│   ├── Application setup
+│   ├── Handlers registration
+│   └── post_init() - Set bot commands menu
+│
+├── search_engine.py          # 🔍 YouTube search
+│   └── search_youtube()
+│
+├── downloader.py             # 📥 Download logic
+│   ├── download_audio_mp3()      # YouTube → MP3
+│   └── download_tiktok_video()   # TikTok → Video
+│
+├── system_info.py            # 🖥️ System monitoring
+│   ├── get_system_info()         # Tổng hợp tất cả info
+│   ├── get_docker_info()         # Docker containers
+│   ├── get_supervisor_info()     # Supervisor programs
+│   └── _format_bytes()           # Helper function
+│
+├── facebook_uploader.py      # 📤 Facebook Graph API
+│   └── upload_video_to_facebook()
+│
+├── requirements.txt          # 📦 Dependencies
+├── .env                      # 🔐 Environment variables
+└── README.md                 # 📖 Documentation
+```
 
-.env: Lưu BOT_TOKEN và ALLOWED_TELEGRAM_IDS (nếu cần giới hạn user).
+---
 
-6. Các lệnh có sẵn (Available Commands)
-/start - Khởi động bot và hiển thị thông báo chào mừng
-/help - Hiển thị menu trợ giúp đầy đủ
-/search <tên bài hát> - Tìm kiếm và tải nhạc từ YouTube (MP3)
-/dowtiktok <URL> - Tải video từ TikTok
-/upfb <URL...> - Tải TikTok và upload lên Facebook Page
+## 6️⃣ Các lệnh có sẵn (Available Commands)
 
-7. Giới hạn và Lưu ý (Limits & Notes)
-- YouTube: Chỉ tải bài hát dưới 30 phút, output là MP3
-- TikTok: Chỉ tải video dưới 10 phút, output là video gốc
-- Xử lý lỗi: Video riêng tư, bị chặn, giới hạn độ tuổi
-- Permission: Có thể giới hạn user thông qua ALLOWED_TELEGRAM_IDS trong .env
-- Facebook: Can FB_PAGE_ID va FB_PAGE_ACCESS_TOKEN (Graph API)
+| Lệnh | Mô tả |
+|------|-------|
+| `/start` | 🚀 Khởi động bot và hiển thị thông báo chào mừng |
+| `/help` | 📖 Hiển thị menu trợ giúp đầy đủ |
+| `/search <tên bài hát>` | 🎵 Tìm kiếm và tải nhạc từ YouTube (MP3) |
+| `/dowtiktok <URL>` | 🎬 Tải video từ TikTok |
+| `/upfb <URL...>` | 📤 Tải TikTok và upload lên Facebook Page |
+| `/sys` | 🖥️ Kiểm tra thông tin hệ thống (CPU, RAM, Disk, Docker, Supervisor) |
+
+---
+
+## 7️⃣ Giới hạn và Lưu ý (Limits & Notes)
+
+### ⏱️ Giới hạn thời lượng
+- **YouTube**: < 30 phút → Output là MP3
+- **TikTok**: < 10 phút → Output là video gốc
+
+### ⚠️ Xử lý lỗi
+- Video riêng tư, bị chặn, giới hạn độ tuổi không tải được
+- Hiển thị thông báo rõ ràng cho người dùng
+
+### 🔒 Permission Control
+- Có thể giới hạn user qua `ALLOWED_TELEGRAM_IDS` trong `.env`
+- Format: danh sách ID phân cách bằng dấu phẩy
+
+### 📤 Facebook Upload
+- **Yêu cầu**: `FB_PAGE_ID` và `FB_PAGE_ACCESS_TOKEN` (Graph API)
+- Chỉ hỗ trợ upload video từ TikTok
+
+---
+
+**📌 Lưu ý:** File này là hướng dẫn chi tiết cho việc phát triển và maintain bot. Đọc kỹ trước khi code!
