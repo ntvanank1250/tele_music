@@ -1,6 +1,9 @@
 import asyncio
 import logging
+import os
 import platform
+import sys
+import time
 from typing import Dict, List, Optional
 
 try:
@@ -33,10 +36,21 @@ async def get_system_info() -> str:
     info_parts = []
     
     # OS Information
-    info_parts.append("🖥️ *HỆ THỐNG*")
+    info_parts.append("🖥️ HỆ THỐNG")
     info_parts.append(f"OS: {platform.system()} {platform.release()}")
-    info_parts.append(f"Platform: {platform.platform()}")
     info_parts.append(f"Architecture: {platform.machine()}")
+    info_parts.append(f"Hostname: {os.uname().nodename}")
+    info_parts.append(f"Python: {sys.version.split()[0]}")
+    
+    # Uptime if psutil available
+    if psutil:
+        try:
+            boot_time = psutil.boot_time()
+            uptime_seconds = int(time.time() - boot_time)
+            uptime_str = _format_uptime(uptime_seconds)
+            info_parts.append(f"Uptime: {uptime_str}")
+        except Exception as exc:
+            logger.warning("Error getting uptime: %s", exc)
     
     # CPU and Memory info (if psutil is available)
     if psutil:
@@ -46,7 +60,7 @@ async def get_system_info() -> str:
             memory = psutil.virtual_memory()
             disk = psutil.disk_usage('/')
             
-            info_parts.append(f"\n💻 *TÀI NGUYÊN*")
+            info_parts.append(f"\n💻 TÀI NGUYÊN")
             info_parts.append(f"CPU: {cpu_count} cores ({cpu_percent}% used)")
             info_parts.append(
                 f"RAM: {_format_bytes(memory.used)} / {_format_bytes(memory.total)} "
@@ -59,7 +73,8 @@ async def get_system_info() -> str:
         except Exception as exc:
             logger.warning("Error getting system resources: %s", exc)
     else:
-        info_parts.append("\n⚠️ psutil not installed - resource info unavailable")
+        info_parts.append(f"\n💻 TÀI NGUYÊN")
+        info_parts.append("⚠️ psutil not installed - detailed resource info unavailable")
     
     # Docker info
     docker_info = await get_docker_info()
@@ -79,7 +94,8 @@ async def get_docker_info() -> Optional[str]:
     # Check if docker is available
     returncode, _, _ = await _run_command(["docker", "--version"])
     if returncode != 0:
-        return "🐳 *DOCKER*\nDocker not installed"
+        # Docker not accessible (normal in container), return None to skip
+        return None
     
     try:
         # Get all containers
@@ -89,12 +105,12 @@ async def get_docker_info() -> Optional[str]:
         if not all_containers:
             return None
         
-        info_parts = ["🐳 *DOCKER*"]
+        info_parts = ["🐳 DOCKER"]
         info_parts.append(f"Total containers: {len(all_containers)}")
         info_parts.append(f"Running: {len(running_containers)}")
         
         if running_containers:
-            info_parts.append("\n*Running Containers:*")
+            info_parts.append("\nRunning Containers:")
             for container in running_containers:
                 info_parts.append(
                     f"  • {container['name']} ({container['image']}) - {container['status']}"
@@ -105,7 +121,7 @@ async def get_docker_info() -> Optional[str]:
                 c for c in all_containers 
                 if c not in running_containers
             ]
-            info_parts.append(f"\n*Stopped Containers:* {len(stopped_containers)}")
+            info_parts.append(f"\nStopped Containers: {len(stopped_containers)}")
             for container in stopped_containers[:5]:  # Show max 5 stopped
                 info_parts.append(f"  • {container['name']} - {container['status']}")
             
@@ -116,7 +132,7 @@ async def get_docker_info() -> Optional[str]:
         
     except Exception as exc:
         logger.exception("Error getting Docker info: %s", exc)
-        return "🐳 *DOCKER*\nError retrieving Docker info"
+        return "🐳 DOCKER\nError retrieving Docker info"
 
 
 async def _get_docker_containers(all_containers: bool = False) -> List[Dict[str, str]]:
@@ -152,7 +168,8 @@ async def get_supervisor_info() -> Optional[str]:
     # Check if supervisorctl is available
     returncode, _, _ = await _run_command(["supervisorctl", "version"])
     if returncode != 0:
-        return "⚙️ *SUPERVISOR*\nSupervisor not installed"
+        # Supervisor not accessible, return None to skip
+        return None
     
     try:
         # Get all programs status
@@ -165,23 +182,23 @@ async def get_supervisor_info() -> Optional[str]:
         programs = _parse_supervisor_status(stdout)
         
         if not programs:
-            return "⚙️ *SUPERVISOR*\nNo programs configured"
+            return "⚙️ SUPERVISOR\nNo programs configured"
         
         running_programs = [p for p in programs if p["state"] == "RUNNING"]
         stopped_programs = [p for p in programs if p["state"] != "RUNNING"]
         
-        info_parts = ["⚙️ *SUPERVISOR*"]
+        info_parts = ["⚙️ SUPERVISOR"]
         info_parts.append(f"Total programs: {len(programs)}")
         info_parts.append(f"Running: {len(running_programs)}")
         
         if running_programs:
-            info_parts.append("\n*Running Programs:*")
+            info_parts.append("\nRunning Programs:")
             for program in running_programs:
                 uptime = program.get("uptime", "")
                 info_parts.append(f"  • {program['name']} - {uptime}")
         
         if stopped_programs:
-            info_parts.append(f"\n*Stopped Programs:* {len(stopped_programs)}")
+            info_parts.append(f"\nStopped Programs: {len(stopped_programs)}")
             for program in stopped_programs:
                 info_parts.append(f"  • {program['name']} - {program['state']}")
         
@@ -189,7 +206,7 @@ async def get_supervisor_info() -> Optional[str]:
         
     except Exception as exc:
         logger.exception("Error getting Supervisor info: %s", exc)
-        return "⚙️ *SUPERVISOR*\nError retrieving Supervisor info"
+        return "⚙️ SUPERVISOR\nError retrieving Supervisor info"
 
 
 def _parse_supervisor_status(output: str) -> List[Dict[str, str]]:
@@ -220,3 +237,20 @@ def _format_bytes(bytes_value: int) -> str:
             return f"{bytes_value:.1f}{unit}"
         bytes_value /= 1024.0
     return f"{bytes_value:.1f}PB"
+
+
+def _format_uptime(seconds: int) -> str:
+    """Format uptime to human-readable format."""
+    days = seconds // 86400
+    hours = (seconds % 86400) // 3600
+    minutes = (seconds % 3600) // 60
+    
+    parts = []
+    if days > 0:
+        parts.append(f"{days}d")
+    if hours > 0:
+        parts.append(f"{hours}h")
+    if minutes > 0:
+        parts.append(f"{minutes}m")
+    
+    return " ".join(parts) if parts else "< 1m"

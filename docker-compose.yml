@@ -13,6 +13,9 @@ services:
       - ./system_info.py:/app/system_info.py
       - ./facebook_uploader.py:/app/facebook_uploader.py
       - ./.env:/app/.env
+      # Mount host system info để /sys command hiển thị server info thực
+      - /proc:/proc:ro
+      - /sys:/sys:ro
     environment:
       - PYTHONUNBUFFERED=1
     env_file:
