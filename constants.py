@@ -11,9 +11,9 @@ MSG_WELCOME = (
 )
 
 MSG_HELP = """
-📖 *HƯỚNG DẪN SỬ DỤNG BOT NHẠC & VIDEO*
+📖 HƯỚNG DẪN SỬ DỤNG BOT NHẠC & VIDEO
 
-🎵 *Các lệnh có sẵn:*
+🎵 Các lệnh có sẵn:
 
 /start - Khởi động bot
 /help - Hiển thị menu trợ giúp này
@@ -22,36 +22,36 @@ MSG_HELP = """
 /upfb <URL...> - Tải TikTok và up lên Facebook
 /sys - Kiểm tra thông tin hệ thống, Docker & Supervisor
 
-📝 *Cách sử dụng:*
+📝 Cách sử dụng:
 
-*🎧 Tải nhạc YouTube:*
+🎧 Tải nhạc YouTube:
 1️⃣ Gõ lệnh /search kèm tên bài hát
-   • Ví dụ: `/search Imagine Dragons Believer`
+   • Ví dụ: /search Imagine Dragons Believer
 2️⃣ Bot sẽ trả về 5 kết quả phù hợp nhất
 3️⃣ Chọn bài hát bạn muốn tải
 4️⃣ Chờ bot xử lý và gửi file MP3 cho bạn
 
-*🎬 Tải video TikTok:*
+🎬 Tải video TikTok:
 1️⃣ Copy link video TikTok (link đầy đủ hoặc rút gọn)
 2️⃣ Gõ lệnh /dowtiktok kèm link
-   • Ví dụ: `/dowtiktok https://www.tiktok.com/@user/video/123456`
-   • Hoặc: `/dowtiktok https://vm.tiktok.com/xyz123`
+   • Ví dụ: /dowtiktok https://www.tiktok.com/@user/video/123456
+   • Hoặc: /dowtiktok https://vm.tiktok.com/xyz123
 3️⃣ Chờ bot tải và gửi video cho bạn
 
-*📤 Up Facebook (Page):*
+📤 Up Facebook (Page):
 1️⃣ Chuẩn bị Access Token và Page ID
 2️⃣ Gõ lệnh /upfb kèm 1 hoặc nhiều link TikTok
-    • Ví dụ: `/upfb https://www.tiktok.com/@user/video/123456`
-    • Nhiều link: `/upfb url1 url2 url3`
+    • Ví dụ: /upfb https://www.tiktok.com/@user/video/123456
+    • Nhiều link: /upfb url1 url2 url3
 3️⃣ Bot sẽ tải video và upload lên Facebook Page
 
-⚠️ *Giới hạn:*
+⚠️ Giới hạn:
 • Nhạc YouTube: < 30 phút → MP3
 • Video TikTok: < 10 phút → Video gốc
 • Video riêng tư, bị chặn, hoặc giới hạn độ tuổi không tải được
 • /upfb chỉ hỗ trợ TikTok và yêu cầu cấu hình FB_PAGE_ID, FB_PAGE_ACCESS_TOKEN
 
-💡 *Mẹo:* 
+💡 Mẹo:
 • Gõ tên bài hát cụ thể kèm tên ca sĩ để kết quả chính xác hơn
 • Với TikTok, cả link đầy đủ và link rút gọn đều được hỗ trợ
 """

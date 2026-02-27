@@ -74,7 +74,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 @require_permission
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /help command."""
-    await update.message.reply_text(MSG_HELP, parse_mode="Markdown")
+    await update.message.reply_text(MSG_HELP)
 
 
 @require_permission
@@ -264,9 +264,12 @@ async def handle_download(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 async def post_init(application: Application) -> None:
     """Set bot commands menu after initialization."""
-    commands = [BotCommand(cmd, desc) for cmd, desc in BOT_COMMANDS]
-    await application.bot.set_my_commands(commands)
-    logger.info("Bot commands menu has been set")
+    try:
+        commands = [BotCommand(cmd, desc) for cmd, desc in BOT_COMMANDS]
+        await application.bot.set_my_commands(commands)
+        logger.info("Bot commands menu has been set successfully")
+    except Exception as exc:
+        logger.warning("Failed to set bot commands menu: %s", exc)
 
 
 def main() -> None:
