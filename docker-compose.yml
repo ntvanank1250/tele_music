@@ -4,10 +4,14 @@ services:
     container_name: tele_music_bot
     restart: unless-stopped
     volumes:
-      # Mount code để auto-reload khi sửa
+      # Mount tất cả file Python để auto-reload khi sửa
       - ./main.py:/app/main.py
+      - ./constants.py:/app/constants.py
+      - ./helpers.py:/app/helpers.py
       - ./search_engine.py:/app/search_engine.py
       - ./downloader.py:/app/downloader.py
+      - ./system_info.py:/app/system_info.py
+      - ./facebook_uploader.py:/app/facebook_uploader.py
       - ./.env:/app/.env
     environment:
       - PYTHONUNBUFFERED=1

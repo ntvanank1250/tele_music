@@ -1,54 +1,54 @@
 # Telegram Music Bot
 
-Muc tieu: bot Telegram tim nhac YouTube, trich xuat audio, tai video TikTok, upload len Facebook Page va kiem tra thong tin he thong.
+Mục tiêu: bot Telegram tìm nhạc YouTube, trích xuất audio, tải video TikTok, upload lên Facebook Page và kiểm tra thông tin hệ thống.
 
-## Yeu cau
-- Python 3.10+ (khuyen nghi 3.11)
-- ffmpeg da duoc cai dat tren may chu
-- Docker (tuy chon, de su dung tinh nang /sys kiem tra containers)
-- Supervisor (tuy chon, de su dung tinh nang /sys kiem tra programs)
+## Yêu cầu
+- Python 3.10+ (khuyên nghị 3.11)
+- ffmpeg đã được cài đặt trên máy chủ
+- Docker (tùy chọn, để sử dụng tính năng /sys kiểm tra containers)
+- Supervisor (tùy chọn, để sử dụng tính năng /sys kiểm tra programs)
 
-## Cai dat moi truong (venv)
-1) Tao va cai dependencies:
+## Cài đặt môi trường (venv)
+1) Tạo và cài dependencies:
 
 ```bash
 ./setup_venv.sh
 ```
 
-2) Kich hoat venv:
+2) Kích hoạt venv:
 
 ```bash
 source .venv/bin/activate
 ```
 
-3) Tao file .env:
+3) Tạo file .env:
 
 ```bash
 cp .env.example .env
 ```
 
-Sau do mo file .env va dien BOT_TOKEN cua ban.
-Neu muon dung /upfb, can them FB_PAGE_ID va FB_PAGE_ACCESS_TOKEN.
+Sau đó mở file .env và điền BOT_TOKEN của bạn.
+Nếu muốn dùng /upfb, cần thêm FB_PAGE_ID và FB_PAGE_ACCESS_TOKEN.
 
-## Chay bot
+## Chạy bot
 
 ```bash
 python main.py
 ```
 
-## Cac lenh co san
-- /start - Khoi dong bot
-- /help - Hien thi huong dan
-- /search <ten bai hat> - Tim va tai nhac YouTube (MP3)
-- /dowtiktok <URL> - Tai video TikTok
-- /upfb <URL...> - Tai TikTok va upload len Facebook Page
-- /sys - Kiem tra thong tin he thong (CPU, RAM, Disk, Docker, Supervisor)
+## Các lệnh có sẵn
+- /start - Khởi động bot
+- /help - Hiển thị hướng dẫn
+- /search <tên bài hát> - Tìm và tải nhạc YouTube (MP3)
+- /dowtiktok <URL> - Tải video TikTok
+- /upfb <URL...> - Tải TikTok và upload lên Facebook Page
+- /sys - Kiểm tra thông tin hệ thống (CPU, RAM, Disk, Docker, Supervisor)
 
-## Ghi chu
-- Neu chua co ffmpeg: cai dat theo he dieu hanh (apt/brew/yum).
-- Gioi han thoi luong: YouTube < 30 phut, TikTok < 10 phut.
-- /upfb chi ho tro TikTok va can Facebook Graph API token.
-- /sys hien thi thong tin he thong, Docker containers va Supervisor programs.
+## Ghi chú
+- Nếu chưa có ffmpeg: cài đặt theo hệ điều hành (apt/brew/yum).
+- Giới hạn thời lượng: YouTube < 30 phút, TikTok < 10 phút.
+- /upfb chỉ hỗ trợ TikTok và cần Facebook Graph API token.
+- /sys hiển thị thông tin hệ thống, Docker containers và Supervisor programs.
 
-## Phu thuoc
+## Phụ thuộc
 Xem [requirements.txt](requirements.txt).
