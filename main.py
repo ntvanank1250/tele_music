@@ -1,4 +1,5 @@
 import asyncio
+import html
 import logging
 import os
 from typing import List
@@ -87,7 +88,8 @@ async def sys_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     
     try:
         system_info = await get_system_info()
-        await msg.edit_text(system_info, parse_mode="Markdown")
+        safe_text = html.escape(system_info)
+        await msg.edit_text(f"<pre>{safe_text}</pre>", parse_mode="HTML")
     except Exception as exc:
         logger.exception("Error getting system info: %s", exc)
         await msg.edit_text(MSG_SYSTEM_INFO_ERROR)
