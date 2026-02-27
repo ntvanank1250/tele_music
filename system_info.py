@@ -175,8 +175,8 @@ async def get_supervisor_info() -> Optional[str]:
     # Check if supervisorctl is available
     returncode, _, _ = await _run_command(_build_supervisorctl_cmd(["version"]))
     if returncode != 0:
-        # Supervisor not accessible, return None to skip
-        return None
+        # Supervisor not accessible, return message
+        return "⚙️ SUPERVISOR\nNot available"
     
     try:
         # Get all programs status
