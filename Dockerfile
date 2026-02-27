@@ -3,12 +3,14 @@ FROM python:3.12-slim
 # Install system dependencies: ffmpeg cho yt-dlp, build tools cho curl-cffi
 RUN apt-get update && \
     apt-get install -y \
+    docker.io \
     ffmpeg \
     gcc \
     g++ \
     make \
     libcurl4-openssl-dev \
-    libssl-dev && \
+    libssl-dev \
+    supervisor && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 

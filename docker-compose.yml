@@ -16,7 +16,12 @@ services:
       # Mount host system info để /sys command hiển thị server info thực
       - /proc:/proc:ro
       - /sys:/sys:ro
+      # Docker socket để đọc thông tin containers từ host
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Supervisor socket từ host (đường dẫn mặc định)
+      - /var/run/supervisor.sock:/var/run/supervisor.sock
     environment:
       - PYTHONUNBUFFERED=1
+      - SUPERVISOR_SOCKET=/var/run/supervisor.sock
     env_file:
       - .env

@@ -31,6 +31,13 @@ async def _run_command(cmd: List[str]) -> tuple[int, str, str]:
         return -1, "", str(exc)
 
 
+def _build_supervisorctl_cmd(args: List[str]) -> List[str]:
+    socket_path = os.getenv("SUPERVISOR_SOCKET")
+    if socket_path:
+        return ["supervisorctl", "-s", socket_path, *args]
+    return ["supervisorctl", *args]
+
+
 async def get_system_info() -> str:
     """Get comprehensive system information."""
     info_parts = []
@@ -166,14 +173,14 @@ async def _get_docker_containers(all_containers: bool = False) -> List[Dict[str,
 async def get_supervisor_info() -> Optional[str]:
     """Get Supervisor programs information."""
     # Check if supervisorctl is available
-    returncode, _, _ = await _run_command(["supervisorctl", "version"])
+    returncode, _, _ = await _run_command(_build_supervisorctl_cmd(["version"]))
     if returncode != 0:
         # Supervisor not accessible, return None to skip
         return None
     
     try:
         # Get all programs status
-        returncode, stdout, stderr = await _run_command(["supervisorctl", "status"])
+        returncode, stdout, stderr = await _run_command(_build_supervisorctl_cmd(["status"]))
         
         if returncode not in [0, 3]:  # 3 = some programs not running
             logger.error("supervisorctl status failed: %s", stderr)
